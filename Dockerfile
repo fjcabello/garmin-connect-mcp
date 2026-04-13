@@ -20,4 +20,4 @@ ENV NODE_ENV=production
 
 EXPOSE 8080
 
-CMD ["supergateway", "--stdio", "node build/index.js", "--outputTransport", "streamableHttp", "--port", "8080", "--streamableHttpPath", "/mcp"]
+CMD ["supergateway", "--stdio", "node build/index.js", "--outputTransport", "streamableHttp", "--port", "8080", "--host", "0.0.0.0", "--streamableHttpPath", "/mcp"]
