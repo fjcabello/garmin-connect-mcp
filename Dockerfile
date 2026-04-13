@@ -15,9 +15,11 @@ RUN npm ci --omit=dev
 RUN npm install -g supergateway
 
 COPY --from=builder /app/build ./build/
+COPY proxy.cjs start.sh ./
+RUN chmod +x /app/start.sh
 
 ENV NODE_ENV=production
 
 EXPOSE 8080
 
-CMD ["supergateway", "--stdio", "node build/index.js", "--outputTransport", "streamableHttp", "--port", "8080", "--host", "0.0.0.0", "--streamableHttpPath", "/mcp"]
+CMD ["/bin/sh", "/app/start.sh"]
