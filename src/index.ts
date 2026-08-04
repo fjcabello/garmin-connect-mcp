@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -57,7 +58,7 @@ async function main(): Promise<void> {
 
   if (httpPort) {
     // Persistent HTTP mode: one process, one Garmin session, concurrent-safe
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID() });
     await server.connect(transport);
 
     const httpServer = createServer(async (req, res) => {
@@ -65,22 +66,16 @@ async function main(): Promise<void> {
         res.writeHead(404).end();
         return;
       }
-      console.error(`[mcp] ${req.method} ${req.url}`);
       try {
         if (req.method === 'POST') {
           const chunks: Buffer[] = [];
           for await (const chunk of req) chunks.push(chunk as Buffer);
-          const rawBody = Buffer.concat(chunks).toString();
-          console.error(`[mcp] body: ${rawBody.slice(0, 200)}`);
-          const body = JSON.parse(rawBody);
+          const body = JSON.parse(Buffer.concat(chunks).toString());
           await transport.handleRequest(req, res, body);
-          console.error(`[mcp] response status: ${res.statusCode}`);
         } else {
           await transport.handleRequest(req, res);
-          console.error(`[mcp] GET response status: ${res.statusCode}`);
         }
       } catch (err) {
-        console.error(`[mcp] ERROR: ${err}`);
         if (!res.headersSent) res.writeHead(500).end(String(err));
       }
     });
