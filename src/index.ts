@@ -1,5 +1,7 @@
+import { createServer } from 'node:http';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { GarminClient } from './client';
 import {
   registerActivityTools,
@@ -51,9 +53,40 @@ registerChallengeTools(server, client);
 registerWriteTools(server, client);
 
 async function main(): Promise<void> {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error('Garmin Connect MCP server running on stdio');
+  const httpPort = process.env.MCP_HTTP_PORT ? parseInt(process.env.MCP_HTTP_PORT) : undefined;
+
+  if (httpPort) {
+    // Persistent HTTP mode: one process, one Garmin session, concurrent-safe
+    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    await server.connect(transport);
+
+    const httpServer = createServer(async (req, res) => {
+      if (req.url !== '/mcp') {
+        res.writeHead(404).end();
+        return;
+      }
+      try {
+        if (req.method === 'POST') {
+          const chunks: Buffer[] = [];
+          for await (const chunk of req) chunks.push(chunk as Buffer);
+          const body = JSON.parse(Buffer.concat(chunks).toString());
+          await transport.handleRequest(req, res, body);
+        } else {
+          await transport.handleRequest(req, res);
+        }
+      } catch (err) {
+        if (!res.headersSent) res.writeHead(500).end(String(err));
+      }
+    });
+
+    httpServer.listen(httpPort, '127.0.0.1', () => {
+      console.error(`Garmin Connect MCP server running on HTTP port ${httpPort}`);
+    });
+  } else {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error('Garmin Connect MCP server running on stdio');
+  }
 }
 
 main().catch((error) => {

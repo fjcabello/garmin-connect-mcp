@@ -1,15 +1,10 @@
 #!/bin/sh
 set -e
 
-# Start supergateway on internal port 8081 (not exposed)
-supergateway \
-  --stdio "node /app/build/index.js" \
-  --outputTransport streamableHttp \
-  --port 8081 \
-  --host 127.0.0.1 \
-  --streamableHttpPath /mcp &
+# Start garmin-connect-mcp as a persistent HTTP server on port 8081
+MCP_HTTP_PORT=8081 node /app/build/index.js &
 
-# Wait for supergateway to be ready
+# Wait for the server to be ready
 sleep 2
 
 # Start auth proxy on port 8080 (foreground, exposed to internet)

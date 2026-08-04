@@ -11,9 +11,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-# Install supergateway to expose stdio MCP as HTTP (same as Pi setup)
-RUN npm install -g supergateway
-
 COPY --from=builder /app/build ./build/
 COPY proxy.cjs start.sh ./
 RUN chmod +x /app/start.sh
