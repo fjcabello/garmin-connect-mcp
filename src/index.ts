@@ -1,5 +1,4 @@
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -32,40 +31,40 @@ if (!GARMIN_EMAIL || !GARMIN_PASSWORD) {
   process.exit(1);
 }
 
-const server = new McpServer({
-  name: 'garmin-connect-mcp',
-  version: '1.0.0',
-});
-
+// GarminClient is shared across requests; it caches auth tokens internally
 const client = new GarminClient(GARMIN_EMAIL, GARMIN_PASSWORD);
 
-registerActivityTools(server, client);
-registerHealthTools(server, client);
-registerTrendTools(server, client);
-registerSleepTools(server, client);
-registerBodyTools(server, client);
-registerPerformanceTools(server, client);
-registerProfileTools(server, client);
-registerRangeTools(server, client);
-registerSnapshotTools(server, client);
-registerTrainingTools(server, client);
-registerWellnessTools(server, client);
-registerChallengeTools(server, client);
-registerWriteTools(server, client);
+function createRequestServer(): McpServer {
+  const s = new McpServer({ name: 'garmin-connect-mcp', version: '1.0.0' });
+  registerActivityTools(s, client);
+  registerHealthTools(s, client);
+  registerTrendTools(s, client);
+  registerSleepTools(s, client);
+  registerBodyTools(s, client);
+  registerPerformanceTools(s, client);
+  registerProfileTools(s, client);
+  registerRangeTools(s, client);
+  registerSnapshotTools(s, client);
+  registerTrainingTools(s, client);
+  registerWellnessTools(s, client);
+  registerChallengeTools(s, client);
+  registerWriteTools(s, client);
+  return s;
+}
 
 async function main(): Promise<void> {
   const httpPort = process.env.MCP_HTTP_PORT ? parseInt(process.env.MCP_HTTP_PORT) : undefined;
 
   if (httpPort) {
-    // Persistent HTTP mode: one process, one Garmin session, concurrent-safe
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID() });
-    await server.connect(transport);
-
     const httpServer = createServer(async (req, res) => {
       if (req.url !== '/mcp') {
         res.writeHead(404).end();
         return;
       }
+      // New transport + server per request (stateless mode requirement)
+      const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+      const requestServer = createRequestServer();
+      await requestServer.connect(transport);
       try {
         if (req.method === 'POST') {
           const chunks: Buffer[] = [];
@@ -85,7 +84,7 @@ async function main(): Promise<void> {
     });
   } else {
     const transport = new StdioServerTransport();
-    await server.connect(transport);
+    await createRequestServer().connect(transport);
     console.error('Garmin Connect MCP server running on stdio');
   }
 }
