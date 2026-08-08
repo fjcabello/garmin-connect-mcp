@@ -1,4 +1,4 @@
-// Auth proxy: validates ?api_key= before forwarding to supergateway on port 8081
+// Auth proxy: validates ?api_key= before forwarding to the MCP HTTP server on port 8081
 const http = require('http');
 
 const API_KEY = process.env.API_KEY;
@@ -17,7 +17,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Strip api_key before forwarding to supergateway
+  // Strip api_key before forwarding to the MCP server
   url.searchParams.delete('api_key');
   const forwardPath = url.pathname + (url.search || '');
 
