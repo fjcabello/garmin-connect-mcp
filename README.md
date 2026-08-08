@@ -211,6 +211,44 @@ To test locally:
 GARMIN_EMAIL=you@email.com GARMIN_PASSWORD=yourpass npm start
 ```
 
+## Deploy to Fly.io
+
+This repo also ships an HTTP-exposed variant of the server (`MCP_HTTP_PORT` + [proxy.cjs](proxy.cjs) auth proxy) designed to run as a container on [Fly.io](https://fly.io), so it can be reached remotely (e.g. by a Cloudflare Worker acting as OAuth gateway — see [mcp-worker-fly](https://github.com/fjcabello/garmin-mcp-fly-worker)).
+
+Architecture inside the container: `proxy.cjs` (port 8080, validates `?api_key=`) → `build/index.js` HTTP server (port 8081, internal only). See [start.sh](start.sh) / [Dockerfile](Dockerfile).
+
+### First-time setup
+
+```bash
+fly auth login
+fly apps create <your-app-name>   # or reuse the name already set in fly.toml
+fly secrets set \
+  API_KEY=$(openssl rand -hex 32) \
+  GARMIN_EMAIL=you@email.com \
+  GARMIN_PASSWORD=yourpass \
+  --app <your-app-name>
+fly deploy --app <your-app-name>
+```
+
+- `API_KEY`: shared secret validated by `proxy.cjs` on every request (`?api_key=...`). Give this same value to whatever client/proxy connects to this server.
+- `GARMIN_EMAIL` / `GARMIN_PASSWORD`: Garmin Connect credentials used by the MCP server itself.
+- The app listens on `8080` internally (see `fly.toml`'s `[http_service] internal_port`); Fly handles TLS termination.
+
+### Continuous deployment
+
+[.github/workflows/deploy.yml](.github/workflows/deploy.yml) auto-deploys to Fly.io on every push to `main` via `flyctl deploy --ha=false --remote-only`. To enable it:
+
+1. Generate a deploy token: `fly tokens create deploy --app <your-app-name>`
+2. Add it as a GitHub Actions secret named `FLY_API_TOKEN` in this repo's settings (Settings → Secrets and variables → Actions).
+
+### Verifying the deployment
+
+```bash
+fly status --app <your-app-name>
+fly logs --app <your-app-name>
+curl "https://<your-app-name>.fly.dev/mcp?api_key=<API_KEY>"
+```
+
 ## Credits
 
 - API endpoints and authentication flow based on [`python-garminconnect`](https://github.com/cyberjunky/python-garminconnect) by [cyberjunky](https://github.com/cyberjunky)
