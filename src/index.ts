@@ -48,7 +48,10 @@ function createRequestServer(): McpServer {
   registerTrainingTools(s, client);
   registerWellnessTools(s, client);
   registerChallengeTools(s, client);
-  registerWriteTools(s, client);
+  // Opt-in: tools that modify or delete Garmin data are a prompt-injection target.
+  if (process.env.GARMIN_ENABLE_WRITE_TOOLS === 'true') {
+    registerWriteTools(s, client);
+  }
   return s;
 }
 

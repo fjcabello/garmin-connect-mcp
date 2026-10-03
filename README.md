@@ -4,6 +4,8 @@ MCP server for Garmin Connect. Access your fitness, health, and training data fr
 
 **61 tools** across 7 categories: activities, daily health, trends, sleep, body composition, performance/training, and profile/devices.
 
+The 8 tools that modify or delete Garmin data (`set_activity_name`, `create_manual_activity`, `delete_activity`, `add_weigh_in`, `set_hydration`, `set_blood_pressure`, `add_gear_to_activity`, `remove_gear_from_activity`) are disabled unless `GARMIN_ENABLE_WRITE_TOOLS=true` is set.
+
 API endpoints and authentication flow based on [`python-garminconnect`](https://github.com/cyberjunky/python-garminconnect) by [cyberjunky](https://github.com/cyberjunky).
 
 ## Requirements
@@ -232,6 +234,7 @@ fly deploy --app <your-app-name>
 
 - `API_KEY`: shared secret validated by `proxy.cjs` on every request (`?api_key=...`). Give this same value to whatever client/proxy connects to this server.
 - `GARMIN_EMAIL` / `GARMIN_PASSWORD`: Garmin Connect credentials used by the MCP server itself.
+- `GARMIN_ENABLE_WRITE_TOOLS` (optional): set to `true` to expose the write/delete tools.
 - The app listens on `8080` internally (see `fly.toml`'s `[http_service] internal_port`); Fly handles TLS termination.
 
 ### Continuous deployment
