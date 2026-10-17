@@ -234,6 +234,8 @@ fly deploy --app <your-app-name>
 
 - `API_KEY`: shared secret validated by `proxy.cjs` on every request (`?api_key=...`). Give this same value to whatever client/proxy connects to this server.
 - `GARMIN_EMAIL` / `GARMIN_PASSWORD`: Garmin Connect credentials used by the MCP server itself.
+- `GARMIN_OAUTH1_TOKEN` (recommended instead of the password): contents of `~/.garmin-mcp/oauth1_token.json` after running `npm run setup` once locally. The OAuth1 token is long-lived and OAuth2 tokens are derived from it, so the server never needs your password and doesn't log in again on every restart. With it set, `GARMIN_EMAIL`/`GARMIN_PASSWORD` can be removed; if Garmin later rejects the token, re-run `npm run setup` and update the secret:
+  `fly secrets set GARMIN_OAUTH1_TOKEN="$(cat ~/.garmin-mcp/oauth1_token.json)"`
 - `GARMIN_ENABLE_WRITE_TOOLS` (optional): set to `true` to expose the write/delete tools.
 - The app listens on `8080` internally (see `fly.toml`'s `[http_service] internal_port`); Fly handles TLS termination.
 
