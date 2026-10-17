@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { GarminClient } from './client';
+import { GarminClient, seedOAuth1Token } from './client';
 import {
   registerActivityTools,
   registerHealthTools,
@@ -19,17 +19,20 @@ import {
   registerWriteTools,
 } from './tools';
 
-const GARMIN_EMAIL = process.env.GARMIN_EMAIL;
-const GARMIN_PASSWORD = process.env.GARMIN_PASSWORD;
+const GARMIN_EMAIL = process.env.GARMIN_EMAIL ?? '';
+const GARMIN_PASSWORD = process.env.GARMIN_PASSWORD ?? '';
+const GARMIN_OAUTH1_TOKEN = process.env.GARMIN_OAUTH1_TOKEN;
 
-if (!GARMIN_EMAIL || !GARMIN_PASSWORD) {
+if (!GARMIN_OAUTH1_TOKEN && (!GARMIN_EMAIL || !GARMIN_PASSWORD)) {
   console.error(
-    'Error: GARMIN_EMAIL and GARMIN_PASSWORD environment variables are required.\n' +
+    'Error: set GARMIN_OAUTH1_TOKEN, or GARMIN_EMAIL and GARMIN_PASSWORD.\n' +
       'Set them when adding this MCP server:\n' +
       '  claude mcp add garmin -e GARMIN_EMAIL=you@email.com -e GARMIN_PASSWORD=yourpass -- npx -y @nicolasvegam/garmin-connect-mcp',
   );
   process.exit(1);
 }
+
+if (GARMIN_OAUTH1_TOKEN) seedOAuth1Token(GARMIN_OAUTH1_TOKEN);
 
 // GarminClient is shared across requests; it caches auth tokens internally
 const client = new GarminClient(GARMIN_EMAIL, GARMIN_PASSWORD);

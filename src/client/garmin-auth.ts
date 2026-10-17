@@ -67,6 +67,25 @@ export type RequestOptions = {
   headers?: Record<string, string>;
 };
 
+/**
+ * Write an OAuth1 token (JSON with oauth_token and oauth_token_secret) to the
+ * token dir so GarminAuth uses it instead of logging in. The OAuth1 token is
+ * long-lived and OAuth2 tokens are derived from it, so with it no password
+ * needs to be configured. Overwrites any cached copy.
+ */
+export function seedOAuth1Token(json: string): void {
+  const token = JSON.parse(json) as Partial<OAuth1Token>;
+  if (!token.oauth_token || !token.oauth_token_secret) {
+    throw new Error('GARMIN_OAUTH1_TOKEN must be JSON with oauth_token and oauth_token_secret');
+  }
+  fs.mkdirSync(TOKEN_DIR, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(
+    path.join(TOKEN_DIR, OAUTH1_TOKEN_FILE),
+    JSON.stringify({ oauth_token: token.oauth_token, oauth_token_secret: token.oauth_token_secret }, null, 2),
+    { mode: 0o600 },
+  );
+}
+
 export class GarminAuth {
   private email: string;
   private password: string;
@@ -156,11 +175,15 @@ export class GarminAuth {
     }
 
     if (this.oauth1Token) {
-      await this.exchangeOAuth1ForOAuth2();
-      await this.fetchProfile();
-      this.saveTokens();
-      this.isAuthenticated = true;
-      return;
+      try {
+        await this.exchangeOAuth1ForOAuth2();
+        await this.fetchProfile();
+        this.saveTokens();
+        this.isAuthenticated = true;
+        return;
+      } catch (error) {
+        console.error('OAuth1 exchange failed, will re-login:', error instanceof Error ? error.message : error);
+      }
     }
 
     await this.login();
@@ -187,6 +210,12 @@ export class GarminAuth {
   }
 
   private async login(): Promise<void> {
+    if (!this.email || !this.password) {
+      throw new Error(
+        'Garmin rejected the OAuth1 token and no GARMIN_EMAIL/GARMIN_PASSWORD is configured. ' +
+          'Generate a new token with `npm run setup` and update GARMIN_OAUTH1_TOKEN.',
+      );
+    }
     console.error('Authenticating with Garmin Connect...');
 
     await this.fetchOAuthConsumer();
