@@ -217,7 +217,7 @@ GARMIN_EMAIL=you@email.com GARMIN_PASSWORD=yourpass npm start
 
 This repo also ships an HTTP-exposed variant of the server (`MCP_HTTP_PORT` + [proxy.cjs](proxy.cjs) auth proxy) designed to run as a container on [Fly.io](https://fly.io), so it can be reached remotely (e.g. by a Cloudflare Worker acting as OAuth gateway — see [mcp-worker-fly](https://github.com/fjcabello/garmin-mcp-fly-worker)).
 
-Architecture inside the container: `proxy.cjs` (port 8080, validates `?api_key=`) → `build/index.js` HTTP server (port 8081, internal only). See [start.sh](start.sh) / [Dockerfile](Dockerfile).
+Architecture inside the container: `proxy.cjs` (port 8080, validates the `x-api-key` header) → `build/index.js` HTTP server (port 8081, internal only). See [start.sh](start.sh) / [Dockerfile](Dockerfile).
 
 ### First-time setup
 
@@ -232,7 +232,8 @@ fly secrets set \
 fly deploy --app <your-app-name>
 ```
 
-- `API_KEY`: shared secret validated by `proxy.cjs` on every request (`?api_key=...`). Give this same value to whatever client/proxy connects to this server.
+- `API_KEY`: shared secret validated by `proxy.cjs` on every request, sent in the `x-api-key` header. Give this same value to whatever client/proxy connects to this server.
+- `ALLOW_QUERY_API_KEY` (optional, default `true`): also accept the key as `?api_key=...`. Set it to `false` once every client sends the header, since query strings end up in logs.
 - `GARMIN_EMAIL` / `GARMIN_PASSWORD`: Garmin Connect credentials used by the MCP server itself.
 - `GARMIN_OAUTH1_TOKEN` (recommended instead of the password): contents of `~/.garmin-mcp/oauth1_token.json` after running `npm run setup` once locally. The OAuth1 token is long-lived and OAuth2 tokens are derived from it, so the server never needs your password and doesn't log in again on every restart. With it set, `GARMIN_EMAIL`/`GARMIN_PASSWORD` can be removed; if Garmin later rejects the token, re-run `npm run setup` and update the secret:
   `fly secrets set GARMIN_OAUTH1_TOKEN="$(cat ~/.garmin-mcp/oauth1_token.json)"`
@@ -251,7 +252,7 @@ fly deploy --app <your-app-name>
 ```bash
 fly status --app <your-app-name>
 fly logs --app <your-app-name>
-curl "https://<your-app-name>.fly.dev/mcp?api_key=<API_KEY>"
+curl -H "x-api-key: <API_KEY>" "https://<your-app-name>.fly.dev/mcp"
 ```
 
 ## Credits
